@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>トイレ総合評価システム</title>
+
+<style>
+body {
+  font-family: sans-serif;
+}
+
+.toilet {
+  border: 2px solid #888;
+  padding: 15px;
+  margin: 15px;
+}
+
+.best {
+  border: 4px solid red;
+  background: #fff0f0;
+}
+
+input[type="range"] {
+  width: 220px;
+}
+
+.bar {
+  width: 200px;
+  height: 10px;
+  background: #ddd;
+  margin-bottom: 6px;
+}
+
+.bar-inner {
+  height: 10px;
+  background: green;
+}
+</style>
+</head>
+
+<body>
+<h1>トイレ使用状況（総合評価）</h1>
+<div id="area"></div>
+
+<script>
+// =====================
+// データ
+// =====================
+const toilets = [
+  { name:"A", using:false, time:0, paper:100 },
+  { name:"B", using:false, time:0, paper:100 },
+  { name:"C", using:false, time:0, paper:100 }
+];
+
+const area = document.getElementById("area");
+
+// =====================
+// 評価関数
+// =====================
+
+// 紙：上に凸の二次関数（最大30点）
+function paperScore(p) {
+  return 30 * (1 - Math.pow((100 - p) / 100, 2));
+}
+
+// においレベル（0〜1）
+// 時間が経つほど下がる
+function smellLevel(seconds) {
+  const maxTime = 180; // 3分でほぼ無臭
+  const x = Math.min(seconds / maxTime, 1);
+  return 1 - Math.pow(x, 2);
+}
+
+// 総合評価
+function totalScore(t) {
+  let score = 0;
+
+  // ① 空席（最重要）
+  if (!t.using) score += 50;
+
+  // ② 紙
+  score += paperScore(t.paper);
+
+  // ③ におい（軽めの減点）
+  const smell = smellLevel(t.time);
+  score -= 20 * Math.pow(smell, 2);
+
+  return Math.max(0, Math.round(score));
+}
+
+// =====================
+// 描画
+// =====================
+function render() {
+  area.innerHTML = "";
+
+  const scores = toilets.map(t => totalScore(t));
+  const best = Math.max(...scores);
+
+  toilets.forEach((t, i) => {
+    const smell = smellLevel(t.time);
+    const score = scores[i];
+
+    const div = document.createElement("div");
+    div.className = "toilet";
+    if (score === best) div.classList.add("best");
+
+    div.innerHTML = `
+      <h2>トイレ ${t.name}</h2>
+
+      <p><b>${t.using ? "使用中" : "空席"}</b></p>
+      <button onclick="toggleUse(${i})">
+        ${t.using ? "空席にする" : "使用中にする"}
+      </button>
+
+      <p>最終使用からの経過時間：${t.time} 秒</p>
+
+      <p>においレベル：${Math.round(smell * 100)}%</p>
+      <div class="bar">
+        <div class="bar-inner" style="width:${smell * 200}px"></div>
+      </div>
+
+      <p>紙残量：${t.paper}%</p>
+      <input type="range" min="0" max="100" value="${t.paper}"
+        oninput="updatePaperValue(${i}, this.value)"
+        onchange="finalizePaper(${i}, this.value)">
+
+      <p><b>総合評価：${score} 点</b></p>
+      <p>${"★".repeat(Math.round(score / 20))}</p>
+    `;
+
+    area.appendChild(div);
+  });
+}
+
+// =====================
+// 操作（重要：滑らか処理）
+// =====================
+function updatePaperValue(i, value) {
+  toilets[i].paper = Number(value);
+  // renderしない → ドラッグ中は滑らか
+}
+
+function finalizePaper(i, value) {
+  toilets[i].paper = Number(value);
+  render(); // 指を離したら再描画
+}
+
+function toggleUse(i) {
+  toilets[i].using = !toilets[i].using;
+  if (toilets[i].using) toilets[i].time = 0;
+  render();
+}
+
+// =====================
+// 時間経過
+// =====================
+setInterval(() => {
+  toilets.forEach(t => {
+    if (!t.using) t.time++;
+  });
+  render();
+}, 1000);
+
+// 初期表示
+render();
+</script>
+</body>
+</html>
