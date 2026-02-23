@@ -58,42 +58,40 @@ const area = document.getElementById("area");
 // 評価関数
 // =====================
 
-// 🧻 紙スコア（心理モデル：30%を境に急落）
+// 🧻 紙スコア（10%以上なら満点、そこから急落）
 function paperScore(p) {
-  const x = p / 100;
 
-  const k = 12;        // 急激さ
-  const center = 0.3;  // 30%で評価が急落
+  if (p >= 10) return 30;     // 10%以上は満点
+  if (p < 5) return 0;        // 5%未満は失格
 
-  const logistic = 1 / (1 + Math.exp(-k * (x - center)));
-
-  return 30 * logistic;
+  // 5〜10%の間で急落（線形で落とす）
+  return 30 * ((p - 5) / 5);
 }
 
-// においレベル（0〜1）
+// 🌫 においレベル（0〜1）
 function smellLevel(seconds) {
-  const maxTime = 180; 
+  const maxTime = 180;
   const x = Math.min(seconds / maxTime, 1);
   return 1 - Math.pow(x, 2);
 }
 
-// 総合評価
+// ⭐ 総合評価
 function totalScore(t) {
 
   let score = 0;
 
-  // ① 空席（最重要）
+  // ① 空席
   if (!t.using) score += 50;
 
   // ② 紙
-  score += paperScore(t.paper);
+  const paper = paperScore(t.paper);
+  score += paper;
 
-  // 🚨 紙5%未満は強制失格
-  if (t.paper < 5) score = 0;
+  if (t.paper < 5) return 0;  // 強制失格
 
-  // ③ におい
+  // ③ におい（比例減点）
   const smell = smellLevel(t.time);
-  score -= 20 * Math.pow(smell, 2);
+  score -= 20 * smell;
 
   return Math.max(0, Math.round(score));
 }
