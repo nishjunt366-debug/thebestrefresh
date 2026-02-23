@@ -58,21 +58,28 @@ const area = document.getElementById("area");
 // 評価関数
 // =====================
 
-// 紙：上に凸の二次関数（最大30点）
+// 🧻 紙スコア（心理モデル：30%を境に急落）
 function paperScore(p) {
-  return 30 * (1 - Math.pow((100 - p) / 100, 2));
+  const x = p / 100;
+
+  const k = 12;        // 急激さ
+  const center = 0.3;  // 30%で評価が急落
+
+  const logistic = 1 / (1 + Math.exp(-k * (x - center)));
+
+  return 30 * logistic;
 }
 
 // においレベル（0〜1）
-// 時間が経つほど下がる
 function smellLevel(seconds) {
-  const maxTime = 180; // 3分でほぼ無臭
+  const maxTime = 180; 
   const x = Math.min(seconds / maxTime, 1);
   return 1 - Math.pow(x, 2);
 }
 
 // 総合評価
 function totalScore(t) {
+
   let score = 0;
 
   // ① 空席（最重要）
@@ -81,7 +88,10 @@ function totalScore(t) {
   // ② 紙
   score += paperScore(t.paper);
 
-  // ③ におい（軽めの減点）
+  // 🚨 紙5%未満は強制失格
+  if (t.paper < 5) score = 0;
+
+  // ③ におい
   const smell = smellLevel(t.time);
   score -= 20 * Math.pow(smell, 2);
 
@@ -134,16 +144,15 @@ function render() {
 }
 
 // =====================
-// 操作（重要：滑らか処理）
+// 操作
 // =====================
 function updatePaperValue(i, value) {
   toilets[i].paper = Number(value);
-  // renderしない → ドラッグ中は滑らか
 }
 
 function finalizePaper(i, value) {
   toilets[i].paper = Number(value);
-  render(); // 指を離したら再描画
+  render();
 }
 
 function toggleUse(i) {
